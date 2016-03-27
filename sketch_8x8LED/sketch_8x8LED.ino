@@ -36,7 +36,7 @@ const byte COL_MAX = 8;
 //---- LED点灯の時間制御 --------------------------------------------------------
 
 // 1LEDの点灯時間 msec
-const int ONE_LED_ON_SPAN = 150;
+const int ONE_LED_ON_SPAN = 1;
 
 // 全部点灯させた後、またリフレッシ開始までのWAIT
 const int WORKOUT_WAIT = 10;
@@ -170,16 +170,44 @@ void setup() {
 //---- 主処理 --------------------------------------------------------------------
 void loop()
 {
-  // サンプル兼デバッグ
-
-  byte first[] = {1,3,5,7};
-  byte second[] = {2,4,6,8};
-  for (byte row=ROW_MIN ; row <=ROW_MAX ; row++) {
-    turnSpecifiedColsOn(row, first, sizeof(first));
-    delay(ONE_LED_ON_SPAN);
-    turnSpecifiedColsOn(row, second, sizeof(second));
-    delay(ONE_LED_ON_SPAN);
+//
+//  byte charA[] = {
+//    B00011000,
+//    B00100100,
+//    B00100100,
+//    B00111100,
+//    B01000010,
+//    B01000010,
+//    B01000010
+//  };
+//
+  byte charAasByteList[8][8] = {
+    {0,0,0,1,1,0,0,0},
+    {0,0,1,0,0,1,0,0},
+    {0,0,1,0,0,1,0,0},
+    {0,0,1,0,0,1,0,0},
+    {0,1,1,1,1,1,1,0},
+    {0,1,0,0,0,0,1,0},
+    {1,0,0,0,0,0,0,1},
+    {1,0,0,0,0,0,0,1}
+  };
+  for (int row=ROW_MIN ; row <=ROW_MAX ; row++) {
+    for (int col=COL_MIN ; col <=COL_MAX ; col++) {
+      if(charAasByteList[row-1][col-1] == 1){
+        turnOnSpecifiedLED(row, col);
+        delay(ONE_LED_ON_SPAN);
+      }
+    }
   }
+
+//  byte first[] = {1,3,5,7};
+//  byte second[] = {2,4,6,8};
+//  for (byte row=ROW_MIN ; row <=ROW_MAX ; row++) {
+//    turnSpecifiedColsOn(row, first, sizeof(first));
+//    delay(ONE_LED_ON_SPAN);
+//    turnSpecifiedColsOn(row, second, sizeof(second));
+//    delay(ONE_LED_ON_SPAN);
+//  }
 
 //  for (int row=ROW_MIN ; row <=ROW_MAX ; row++) {
 //    for (int col=COL_MIN ; col <=COL_MAX ; col++) {
