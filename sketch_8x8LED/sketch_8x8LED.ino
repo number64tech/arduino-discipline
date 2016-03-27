@@ -36,7 +36,7 @@ const byte COL_MAX = 8;
 //---- LED点灯の時間制御 --------------------------------------------------------
 
 // 1LEDの点灯時間 msec
-const int ONE_LED_ON_SPAN = 1;
+const int ONE_LED_ON_SPAN = 2;
 
 // 全部点灯させた後、またリフレッシ開始までのWAIT
 const int WORKOUT_WAIT = 10;
@@ -82,9 +82,24 @@ void turnSpecifiedColsOn(byte row, byte cols[], byte colLength) {
   for (byte settingCol=COL_MIN ; settingCol<=COL_MAX ; settingCol++) {
     turnOffSpecifiedCol(settingCol);
   }
-
   for (byte i=0 ; i<colLength ; i++) {
     turnOnSpecifiedCol(cols[i]);
+  }
+  turnOnOnlySpecifiedRow(row);
+}
+
+// 指定されたrowについて、指定colを点灯/それ以外のcolを消灯させる（bit判定）。
+//   このメソッドは1row8bit前提とする。
+void turnSpecifiedColsAsBitPattern(byte row, byte bitPattern) {
+  // bitPatternをコピーしてシフトしながら点灯消灯を制御する。
+  byte bitPatternWork = bitPattern;
+  for (byte col=COL_MIN ; col<=COL_MAX ; col++) {
+    if (bitPatternWork > B01111111) {
+      turnOnSpecifiedCol(col);
+    } else {
+      turnOffSpecifiedCol(col);
+    }
+    bitPatternWork = bitPatternWork << 1;
   }
   turnOnOnlySpecifiedRow(row);
 }
@@ -142,20 +157,9 @@ void turnOffSpecifiedRow(byte row) {
 //---- 初期処理 ------------------------------------------------------------------
 void setup() {
   // Arduino0～15PINを「お前はデジタルOUTだ」と任命する
-  pinMode( 0, OUTPUT);
-  pinMode( 1, OUTPUT);
-  pinMode( 2, OUTPUT);
-  pinMode( 3, OUTPUT);
-  pinMode( 4, OUTPUT);
-  pinMode( 5, OUTPUT);
-  pinMode( 6, OUTPUT);
-  pinMode( 7, OUTPUT);
-  pinMode( 8, OUTPUT);
-  pinMode( 9, OUTPUT);
-  pinMode(10, OUTPUT);
-  pinMode(11, OUTPUT);
-  pinMode(12, OUTPUT);
-  pinMode(13, OUTPUT);
+  for (byte i=0 ; i<=13 ; i++) {
+    pinMode(i, OUTPUT);
+  }
   pinMode(A0, OUTPUT);
   pinMode(A1, OUTPUT);
 
@@ -170,51 +174,39 @@ void setup() {
 //---- 主処理 --------------------------------------------------------------------
 void loop()
 {
-//
-//  byte charA[] = {
-//    B00011000,
-//    B00100100,
-//    B00100100,
-//    B00111100,
-//    B01000010,
-//    B01000010,
-//    B01000010
-//  };
-//
-  byte charAasByteList[8][8] = {
-    {0,0,0,1,1,0,0,0},
-    {0,0,1,0,0,1,0,0},
-    {0,0,1,0,0,1,0,0},
-    {0,0,1,0,0,1,0,0},
-    {0,1,1,1,1,1,1,0},
-    {0,1,0,0,0,0,1,0},
-    {1,0,0,0,0,0,0,1},
-    {1,0,0,0,0,0,0,1}
+  const int REFRESH_MAX = 50;
+  static int refreshCounter = 0;
+
+  static byte charA[] = {
+    B00010000,
+    B00101000,
+    B00101000,
+    B00101000,
+    B01111100,
+    B01000100,
+    B10000010,
+    B10000010
   };
+
+  // 現在の表示バッファ内容を表示
   for (int row=ROW_MIN ; row <=ROW_MAX ; row++) {
-    for (int col=COL_MIN ; col <=COL_MAX ; col++) {
-      if(charAasByteList[row-1][col-1] == 1){
-        turnOnSpecifiedLED(row, col);
-        delay(ONE_LED_ON_SPAN);
-      }
-    }
+    turnSpecifiedColsAsBitPattern(row, charA[row -1]);
+    delay(ONE_LED_ON_SPAN);
   }
 
-//  byte first[] = {1,3,5,7};
-//  byte second[] = {2,4,6,8};
-//  for (byte row=ROW_MIN ; row <=ROW_MAX ; row++) {
-//    turnSpecifiedColsOn(row, first, sizeof(first));
-//    delay(ONE_LED_ON_SPAN);
-//    turnSpecifiedColsOn(row, second, sizeof(second));
-//    delay(ONE_LED_ON_SPAN);
-//  }
-
-//  for (int row=ROW_MIN ; row <=ROW_MAX ; row++) {
-//    for (int col=COL_MIN ; col <=COL_MAX ; col++) {
-//      turnOnSpecifiedLED(row, col);
-//      delay(ONE_LED_ON_SPAN);
-//    }
-//  }
+  // 現在の表示を継続するか、シフトさせるか
+  refreshCounter++;
+  if (refreshCounter == REFRESH_MAX) {
+    for (byte i=0 ; i<8 ; i++) {
+      if (charA[i] > B01111111) {
+        charA[i] = charA[i] << 1;
+        charA[i]++;       
+      } else {
+        charA[i] = charA[i] << 1;
+      }
+    }
+    refreshCounter = 0;
+  }
 
 }
 
