@@ -106,8 +106,8 @@ const byte COL_MAX = 8;
 
 //---- LED点灯の時間制御 --------------------------------------------------------
 
-// 1LEDの点灯時間 msec
-const int ONE_LED_ON_SPAN = 2;
+// 1列のLEDの点灯時間 msec
+const int ROW_ENERGIZATION_MSEC = 2;
 
 // 全部点灯させた後、またリフレッシ開始までのWAIT
 const int WORKOUT_WAIT = 10;
@@ -116,10 +116,101 @@ const int WORKOUT_WAIT = 10;
 // ★ あんまり難しく考える必要なかった
 
 // 配列要素 0=ROW1 ～ 7=ROW8 に対応するLEDPin
-byte anodeLedPinList[] = { 9, 14, 8, 12, 1, 7, 2, 5 };
+const byte anodeLedPinList[] = { 9, 14, 8, 12, 1, 7, 2, 5 };
 
 // 配列要素 0=COL1 ～ 7=COL8 に対応するLEDPin
-byte cathodeLedPinList[] = { 13, 3, 4, 10, 6, 11, 15, 16 };
+const byte cathodeLedPinList[] = { 13, 3, 4, 10, 6, 11, 15, 16 };
+
+//---- ひょうじもじれつ ----------------------------------------------------------
+byte* outputText[] = { charT, charO, charD };
+byte outputTextLength = 3;
+
+//---- 主処理 --------------------------------------------------------------------
+void loop()
+{
+  // -- 表示制御変数群 --
+
+  // ディスプレイパターンを表示しつづけるための変数
+  const int REFRESH_MAX = 10;
+  static int refreshCounter = REFRESH_MAX;
+  
+  // ディスプレイパターン(今ビットマトリクスLEDに表示するパターン)
+  static byte dispPattern[8];
+  // 取り込み中のパターン 8bit全部移したら次の文字を持ってくる
+  static byte shiftingPattern[8];
+  // 取り込み中のパターンをあと何bit取り込むか 7から0に変わっていくが初回起動時は0
+  static byte shiftCounter = 0;
+  
+  // 現在フォーカスしている、ひょうじもじれつのindex値 初回起動時は-1
+  static byte focusIndex = -1;
+  
+  // -- 主処理 --
+
+  // フォーカス移動要否判定
+  if (refreshCounter == REFRESH_MAX && shiftCounter == 0) {
+    byte nextIndex;
+    if (outputTextLength == 1) {
+      focusIndex = 0;
+      nextIndex = 0;
+    } else if (focusIndex == outputTextLength - 2) {
+      focusIndex++;
+      nextIndex = 0;
+    } else if (focusIndex == outputTextLength - 1) {
+      focusIndex = 0;
+      nextIndex = 1;
+    } else {
+      focusIndex++;    
+      nextIndex = focusIndex + 1;
+    }
+    // 文字データを転記
+    cloneTextData(outputText[focusIndex], dispPattern);
+    cloneTextData(outputText[nextIndex], shiftingPattern);
+    // カウンタを初期状態に戻す
+    shiftCounter = 7;
+    refreshCounter = 0;
+  }
+
+  // ビットシフト要否判定実施
+  if (refreshCounter == REFRESH_MAX) {
+    for (byte i=0 ; i<8 ; i++) {
+      dispPattern[i] = dispPattern[i] << 1;
+      if (shiftingPattern[i] > B01111111) {
+        dispPattern[i]++;       
+      }
+      shiftingPattern[i] = shiftingPattern[i] << 1;
+    }
+    // シフトカウンタをデクリメント、リフレッシュカウンタは初期化
+    //   シフトさせるのは7bit分でよい。7bitシフトした状態を表示しきったら、次はフォーカス移動
+    shiftCounter--;
+    refreshCounter = 0;
+  }
+
+  // 現在のディスプレイパターン内容を表示
+  for (int row=ROW_MIN ; row <=ROW_MAX ; row++) {
+    turnSpecifiedColsAsBitPattern(row, charA[row -1]);
+    delay(ROW_ENERGIZATION_MSEC);
+  }
+
+  // リフレッシュカウンタ
+  refreshCounter++;
+}
+
+//---- 初期処理 ------------------------------------------------------------------
+void setup() {
+  // Arduino0～15PINを「お前はデジタルOUTだ」と任命する
+  for (byte i=0 ; i<=13 ; i++) {
+    pinMode(i, OUTPUT);
+  }
+  pinMode(A0, OUTPUT);
+  pinMode(A1, OUTPUT);
+
+  for (byte row=ROW_MIN; row<=ROW_MAX ; row++) {
+    turnOffSpecifiedRow(row);
+  }
+  for (byte col=COL_MIN; col<=COL_MAX ; col++) {
+    turnOffSpecifiedCol(col);
+  }
+}
 
 //---- ハードウェア連携処理 -----------------------------------------------------
 // 実装については、row側がAnodeであることの影響を受けている。
@@ -225,48 +316,13 @@ void turnOffSpecifiedRow(byte row) {
   digitalWrite(getArduinoPinFromLedPin(getAnodeLedPinFromRow(row)), LOW);
 }
 
-//---- 初期処理 ------------------------------------------------------------------
-void setup() {
-  // Arduino0～15PINを「お前はデジタルOUTだ」と任命する
-  for (byte i=0 ; i<=13 ; i++) {
-    pinMode(i, OUTPUT);
-  }
-  pinMode(A0, OUTPUT);
-  pinMode(A1, OUTPUT);
+//---- テキストデータ制御 ------------------------------------------------------------
 
-  for (byte row=ROW_MIN; row<=ROW_MAX ; row++) {
-    turnOffSpecifiedRow(row);
+// 1文字分のテキストデータ(8bit*8=8byte)を、指定された領域に転記する
+//  from,toともにbyte[8]相当の領域であること 
+void cloneTextData(byte* from, byte* to) {
+  for (int i=0 ; i<8 ; i++) {
+    to[i] = from[i];
   }
-  for (byte col=COL_MIN; col<=COL_MAX ; col++) {
-    turnOffSpecifiedCol(col);
-  }
-}
-
-//---- 主処理 --------------------------------------------------------------------
-void loop()
-{
-  const int REFRESH_MAX = 50;
-  static int refreshCounter = 0;
-
-  // 現在の表示バッファ内容を表示
-  for (int row=ROW_MIN ; row <=ROW_MAX ; row++) {
-    turnSpecifiedColsAsBitPattern(row, charA[row -1]);
-    delay(ONE_LED_ON_SPAN);
-  }
-
-  // 現在の表示を継続するか、シフトさせるか
-  refreshCounter++;
-  if (refreshCounter == REFRESH_MAX) {
-    for (byte i=0 ; i<8 ; i++) {
-      if (charA[i] > B01111111) {
-        charA[i] = charA[i] << 1;
-        charA[i]++;       
-      } else {
-        charA[i] = charA[i] << 1;
-      }
-    }
-    refreshCounter = 0;
-  }
-
 }
 
