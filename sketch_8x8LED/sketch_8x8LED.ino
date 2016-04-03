@@ -52,13 +52,14 @@ static byte charO[] = {
 };
 
 static byte charD[] = {
-  B11111000, 
-  B10000100,  
+  B11110000, 
+  B10001100,  
   B10000010, 
   B10000010, 
   B10000010, 
-  B10000100, 
-  B11111000
+  B10000010, 
+  B10001100, 
+  B11110000
 };
 
 static byte charR[] = {
@@ -83,14 +84,14 @@ static byte charK[] = {
 };
 
 static byte charI[] = {
-  B00010000, 
-  B00010000, 
-  B00010000, 
-  B00010000, 
-  B00010000, 
-  B00010000, 
-  B00010000, 
-  B00010000
+  B00100000, 
+  B00100000, 
+  B00100000, 
+  B00100000, 
+  B00100000, 
+  B00100000, 
+  B00100000, 
+  B00100000
 };
 
 
@@ -109,8 +110,8 @@ const byte COL_MAX = 8;
 // 1列のLEDの点灯時間 msec
 const int ROW_ENERGIZATION_MSEC = 2;
 
-// 全部点灯させた後、またリフレッシ開始までのWAIT
-const int WORKOUT_WAIT = 10;
+// ある状態のディスプレイパターンを表示する回数
+const int REFRESH_MAX = 7;
 
 //---- ハードウェア連携設定 -----------------------------------------------------
 // ★ あんまり難しく考える必要なかった
@@ -122,8 +123,8 @@ const byte anodeLedPinList[] = { 9, 14, 8, 12, 1, 7, 2, 5 };
 const byte cathodeLedPinList[] = { 13, 3, 4, 10, 6, 11, 15, 16 };
 
 //---- ひょうじもじれつ ----------------------------------------------------------
-byte* outputText[] = { charT, charO, charD };
-byte outputTextLength = 3;
+byte* outputText[] = { charT, charO, charD, charO, charR, charO, charK, charI };
+byte outputTextLength = 8;
 
 //---- 主処理 --------------------------------------------------------------------
 void loop()
@@ -131,7 +132,6 @@ void loop()
   // -- 表示制御変数群 --
 
   // ディスプレイパターンを表示しつづけるための変数
-  const int REFRESH_MAX = 10;
   static int refreshCounter = REFRESH_MAX;
   
   // ディスプレイパターン(今ビットマトリクスLEDに表示するパターン)
@@ -187,7 +187,7 @@ void loop()
 
   // 現在のディスプレイパターン内容を表示
   for (int row=ROW_MIN ; row <=ROW_MAX ; row++) {
-    turnSpecifiedColsAsBitPattern(row, charA[row -1]);
+    turnSpecifiedColsAsBitPattern(row, dispPattern[row -1]);
     delay(ROW_ENERGIZATION_MSEC);
   }
 
